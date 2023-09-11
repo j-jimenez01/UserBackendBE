@@ -34,40 +34,30 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Registration route
-app.post('/api/register', async (req, res) => {
-  const { email, password, verificationCode } = req.body;
-
-  try {
-    // Check if the email is already registered
-    const existingUser = await User.findOne({ email });
-
-    if (existingUser) {
-      return res.status(400).json({ message: 'Email already registered.' });
-    }
-
-    // Check if the verification code matches the one sent to the user
-    if (verificationCode !== 'expected-verification-code') {
-      return res.status(400).json({ message: 'Invalid verification code.' });
-    }
-
-    // Create a new user
-    const newUser = new User({ email, password, isVerified: true }); // Mark the user as verified
-    await newUser.save();
-
-    res.status(200).json({ message: 'Registration successful.' });
-  } catch (error) {
-    console.error('Registration failed:', error);
-    res.status(500).json({ message: 'Registration failed.' });
-  }
-});
+// Generate a 6-digit verification code
+function generateVerificationCode() {
+  const min = 100000; // Minimum 6-digit number
+  const max = 999999; // Maximum 6-digit number
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
 // Send verification email route
 app.post('/api/send-verification-email', async (req, res) => {
   const { email } = req.body;
-  const verificationCode = 'generate-unique-code-here'; // Generate a unique code for this email
+  const verificationCode = generateVerificationCode(); // Generate a unique code for this email
 
   try {
+    // Check if a user with the provided email already exists
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email is already registered.' });
+    }
+
+    // Create a new user record with a temporary verification code (password is not required)
+    const newUser = new User({ email, verificationCode });
+    await newUser.save();
+
     // Send a verification email with the code
     await transporter.sendMail({
       from: 'beacheventsapp@outlook.com', // Your Outlook email address
@@ -80,6 +70,33 @@ app.post('/api/send-verification-email', async (req, res) => {
   } catch (error) {
     console.error('Sending verification email failed:', error);
     res.status(500).json({ message: 'Sending verification email failed.' });
+  }
+});
+
+// Registration route
+app.post('/api/register', async (req, res) => {
+  const { email, password, enteredVerificationCode } = req.body;
+
+  try {
+    // Find the user by email and temporary verification code
+    const user = await User.findOne({ email, verificationCode: enteredVerificationCode });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid email or verification code.' });
+    }
+
+    // Update the user record with the actual password and mark as verified
+    if (password) {
+      user.password = password;
+      user.isVerified = true;
+      await user.save();
+      res.status(200).json({ message: 'Registration successful.' });
+    } else {
+      res.status(400).json({ message: 'Password is required for registration.' });
+    }
+  } catch (error) {
+    console.error('Registration failed:', error);
+    res.status(500).json({ message: 'Registration failed.' });
   }
 });
 
