@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
@@ -105,6 +104,39 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
+// New API endpoint for user authentication
+app.post('/api/authenticate', async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Email not found.' });
+    }
+
+    if (!user.isVerified) {
+      return res.status(400).json({ message: 'Email not verified. Please check your email for a verification code.' });
+    }
+
+    if (user.password !== password) {
+      return res.status(400).json({ message: 'Invalid password.' });
+    }
+
+    // User authentication successful
+    res.status(200).json({ message: 'Authentication successful.' });
+  } catch (error) {
+    console.error('Authentication failed:', error);
+    res.status(500).json({ message: 'Authentication failed.' });
+  }
+});
+
+// FOR HOME
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server is running on http://0.0.0.0:${port}`);
 });
+
+// // FOR SCHOOL
+// app.listen(port, '10.39.69.121', () => {
+//   console.log(`Server is running on http://10.39.69.121:${port}`);
+// });
