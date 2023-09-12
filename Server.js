@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
@@ -72,7 +73,7 @@ app.post('/api/send-verification-email', async (req, res) => {
 });
 
 app.post('/api/register', async (req, res) => {
-  const { email, password, enteredVerificationCode } = req.body;
+  const { email, password, verificationCode } = req.body;
 
   try {
     // Check if the email matches the required domain
@@ -80,10 +81,14 @@ app.post('/api/register', async (req, res) => {
       return res.status(400).json({ message: 'Invalid email domain. Use @student.csulb.edu.' });
     }
 
-    const user = await User.findOne({ email, verificationCode: enteredVerificationCode });
+    const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(400).json({ message: 'Invalid email or verification code.' });
+      return res.status(400).json({ message: 'Email not found.' });
+    }
+
+    if (user.verificationCode !== verificationCode) {
+      return res.status(400).json({ message: 'Invalid verification code.' });
     }
 
     if (password) {
