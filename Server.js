@@ -131,12 +131,14 @@ app.post('/api/authenticate', async (req, res) => {
   }
 });
 
+
+
 // FOR HOME
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server is running on http://0.0.0.0:${port}`);
 });
 
 // // FOR SCHOOL
-// app.listen(port, '10.39.69.121', () => {
-//   console.log(`Server is running on http://10.39.69.121:${port}`);
+// app.listen(port, '10.39.29.205', () => {
+//   console.log(`Server is running on http://10.39.29.205:${port}`);
 // });
