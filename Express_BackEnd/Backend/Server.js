@@ -74,7 +74,7 @@ app.post('/api/send-verification-email', async (req, res) => {
   const verificationCode = generateVerificationCode();
   try {
     // Check if a user with the provided email already exists
-    console.log("id",id)
+    console.log("id: ",id)
     console.log("fp: ",fp)
     const existingUser = await User.findOne({ "email": id });
     console.log("existing user:", existingUser)
@@ -208,7 +208,6 @@ app.post('/api/authenticate', async (req, res) => {
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server is running on http://0.0.0.0:${port}`);
 });
-
 
 
 
