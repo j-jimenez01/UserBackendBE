@@ -39,35 +39,6 @@ function generateVerificationCode() {
   return Math.floor(Math.random() * (max - min + 1)) + min; 
 }
 
-// app.post('/api/send-verification-email', async (req, res) => {
-//   var { id } = req.body;
-//   const verificationCode = generateVerificationCode();
-
-//   try {
-//     // Check if a user with the provided email already exists
-//     const existingUser = await User.findOne({ "email": id });
-//     console.log("existing user:", existingUser)
-  
-//     if (existingUser) {
-//       return res.status(400).json({ message: `${id} is already registered.` });
-//     }
-//     else{
-//       await transporter.sendMail({
-//         from: 'events.beach@gmail.com',
-//         to: id,
-//         subject: 'Email Verification',
-//         text: `Your verification code is: ${verificationCode}`,
-//       });
-  
-//       res.status(200).json({ message:  verificationCode});
-//     }
-//   } catch (error) {
-//     console.error('Sending verification email failed:', error);
-//     res.status(500).json({ message: 'Sending verification email failed.' });
-//   }
-//   // in dhruvs
-//   res.status(200).json({ message:  verificationCode});
-// });
 app.post('/api/send-verification-email', async (req, res) => {
   var { id } = req.body;
   var { fp } = req.body;
