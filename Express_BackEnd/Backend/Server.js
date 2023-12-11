@@ -5,6 +5,7 @@ require('dotenv').config()
 const nodemailer = require('nodemailer');
 const User = require('./User');
 
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -38,7 +39,6 @@ function generateVerificationCode() {
   return Math.floor(Math.random() * (max - min + 1)) + min; 
 }
 
-
 app.post('/api/send-verification-email', async (req, res) => {
   var { id } = req.body;
   var { fp } = req.body;
@@ -49,7 +49,6 @@ app.post('/api/send-verification-email', async (req, res) => {
     console.log("fp: ",fp)
     const existingUser = await User.findOne({ "email": id });
     console.log("existing user:", existingUser)
-    console.log("this is the id:",id)
     
     if (existingUser != null && fp == "New") {
       return res.status(400).json({ message: `${id} already registered.`});
@@ -95,6 +94,31 @@ app.post('/api/send-verification-email', async (req, res) => {
 
 res.status(200).json({ message:  verificationCode});
 
+});
+
+
+
+
+app.post('/api/changePassword', async (req, res) => {
+  const { id, password } = req.body;
+  
+  try {
+    // Check if the email matches the required domain
+    // console.log(id)
+    // console.log(password)
+    const user = await User.findOne({ "email": id });
+    if (password) {
+      user.password = password;
+      user.isVerified = true;
+      await user.save();
+      res.status(200).json({ message: 'Password reset successful.' });
+    } else {
+      res.status(400).json({ message: 'Password reset unsuccesful' });
+    }
+  } catch (error) {
+    console.error('Registration failed:', error);
+    res.status(500).send({ message: 'Password reset failed.' });
+  }
 });
 
 app.post('/api/register', async (req, res) => {
@@ -157,18 +181,18 @@ app.post('/api/pinevent', async (req, res) =>{
   try{
     const user = await User.findOne({ 'email': id })
     if (user){
-      console.log("This is an array ", user.Subscribed)
-      const arr = user.Subscribed
+      console.log("This is an array ", user.Pinned)
+      const arr = user.Pinned
       const eventString = JSON.stringify(event)
       console.log("1: debug")
-      console.log('MongoDB Arr Before:', user.Subscribed)
+      console.log('MongoDB Arr Before:', user.Pinned)
       const foundEvent = arr.find((element) => {
         const a = JSON.stringify(element) 
         console.log("ELEMENT: ", a)
         console.log("event: ", eventString)
         if(a == eventString){
           console.log("2: debug")
-          console.log('MongoDB Arr After:', user.Subscribed)
+          console.log('MongoDB Arr After:', user.Pinned)
           return true
         }
       })
@@ -177,8 +201,8 @@ app.post('/api/pinevent', async (req, res) =>{
       }
       else{
         arr.push(event)
-        await User.updateOne({'email': id}, {'Subscribed': arr})
-        console.log('MongoDB Arr  After: ', user.Subscribed)
+        await User.updateOne({'email': id}, {'Pinned': arr})
+        console.log('MongoDB Arr  After: ', user.Pinned)
         return res.status(200).json({ message: 'Event Pinned Successfully' }) 
       }
     }
@@ -191,26 +215,130 @@ app.post('/api/pinevent', async (req, res) =>{
     }
     
 });
-// app.delete('/api/unpin/:id', async (req,res)=>{
-//   const {id , eventId} = req.body
-//   try{
-//     const user = await User.findOne({'email': id});
-//     const arr = user.Subscribed
-//     if (! (arr.find((element) => element == eventId))){
-//       return res.status(400).json({message : "Event unpinned Successfully"})
-//     }else{
-//       let index = arr.indexOf(eventId)
 
-//     }
-//   }
+app.post('/api/subscribe', async (req, res) =>{
+  const {id , org} = req.body
+  console.log(id)
+  console.log(org)
+  try{
+    const user = await User.findOne({ 'email': id })
+    if (user){
+      console.log("This is an array ", user.Subscribed)
+      const arr = user.Subscribed
+      console.log("1: debug")
+      console.log('MongoDB Arr Before:', user.Subscribed)
+      const foundEvent = arr.find((element) => {
+        console.log("ELEMENT: ",element)
+        console.log("event: ", eventString)
+        if(element == org){
+          console.log("2: debug")
+          console.log('MongoDB Arr After:', user.Subscribed)
+          return true
+        }
+      })
+      if(foundEvent){
+        return res.status(200).json({ message: 'Already Subscribed' })
+      }
+      else{
+        arr.push(org)
+        await User.updateOne({'email': id}, {'Subscribed': arr})
+        console.log('MongoDB Arr  After: ', user.Subscribed)
+        return res.status(200).json({ message: 'Organization subscribed' }) 
+      }
+    }
+    else{
+        return res.status(404).json({message:"User Not Found"})
+    }
+  }
+  catch(err){
+      return res.status(500).json({message: "Error subscribing to the organization!"})
+    }
+    
+});
 
-// })
+app.delete('/api/unpin', async (req,res)=>{
+  const {id , event} = req.body
+  console.log(id)
+  try{
+    const user = await User.findOne({'email': id});
+    console.log("Inside Unpin :", user)
+    if(user){
+      const arr = user.Pinned
+      console.log("before Unpin :", arr)
+      const eventString = JSON.stringify(event)
+      const foundEvent = arr.find((element) => {
+          const a = JSON.stringify(element) 
+          console.log("ELEMENT: ", a)
+          // console.log("event: ", eventString)
+          if(a == eventString){
+            console.log("Found String")
+            return true
+          }
+      })
+      if(foundEvent){
+        const index = arr.findIndex(element => element.id == event.id)
+        arr.splice(index, 1)
+        await User.updateOne({'email': id}, {'Pinned': arr})
+        console.log("After Unpin: ",arr)
+        return res.status(200).json({ message: 'Unpinned the event!' })
+      }
+
+    }
+    else{
+      console.log("User Not Found")
+      return res.status(404).json({message:"User Not Found"})
+    }
+  }catch(err){
+    console.log("Error")
+    return res.status(500).json({message: "Error Un-pinning the Event!"})
+  }
+
+})
+
+
+app.delete('/api/unsubscribe', async (req,res)=>{
+  const {id , org} = req.body
+  console.log(id)
+  try{
+    const user = await User.findOne({'email': id});
+    console.log("Inside unsubscribe :", user)
+    if(user){
+      const arr = user.Subscribed
+      console.log("before Unpin :", arr)
+      // const eventString = JSON.stringify
+      const foundEvent = arr.find((element) => {
+          // const a = JSON.stringify(element) 
+          // console.log("ELEMENT: ", a)
+          // console.log("event: ", eventString)
+          if(element == org){
+            console.log("Found String")
+            return true
+          }
+      })
+      if(foundEvent){
+        const index = arr.findIndex(element => element == org )
+        arr.splice(index, 1)
+        await User.updateOne({'email': id}, {'Subscribed': arr})
+        console.log("After Unpin: ",arr)
+        return res.status(200).json({ message: `Unsubscribed!` })
+      }
+    }
+    else{
+      console.log("User Not Found")
+      return res.status(404).json({message:"User Not Found"})
+    }
+  }catch(err){
+    console.log("Error")
+    return res.status(500).json({message: "Error Unsubscribing the Org!"})
+  }
+})
 
 
 
 
 
 
+// <<<<<<< HEAD
 
 
 // FOR HOME
@@ -221,6 +349,15 @@ app.post('/api/pinevent', async (req, res) =>{
 // FOR SCHOOL
 
 
+
+
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server is running on http://0.0.0.0:${port}`);
 });
+
+
+
+
+
+
+
