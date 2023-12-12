@@ -9,15 +9,10 @@ connection_String  = "mongodb+srv://KeshavMehta:ftZbEq1LCpPW4Uy1@cluster0.gq0hrf
 my_client = pymongo.MongoClient(connection_String)
 dbname = my_client['test']
 collection_name = dbname["users"]
-myuser = {'email': 'dhruv.gorasiya@student.csulb.edu'}
+myuser = {'email': 'keshav.mehta@student.csulb.edu'}
 mydoc = collection_name.find(myuser)
 a = list(mydoc)
 
-locations = []
-res = (requests.get(f"https://csulb.campuslabs.com/engage/api/discovery/event/search?endsAfter={processTime()}&status=Approved&take=100000&query={''}&skip=0")).json()['value']
-for i in res:
-    if i['location'] not in locations:
-        locations.append(i['location'])
 
 loc = [
     {
@@ -109,11 +104,12 @@ loc = [
 
 @api_view(['GET'])
 def getPinList(request):
-    location_pins = [{"description": "University Student Union",
-    "location": {
-      "latitude": 33.781260370009484,
-      "longitude": -118.1137525461882,
-    }}]
+    # location_pins = [{"description": "University Student Union",
+    # "location": {
+    #   "latitude": 33.781260370009484,
+    #   "longitude": -118.1137525461882,
+    # }}]
+    location_pins = []
     query = {'email': request.GET.get('query')}
     print(query)
     user = collection_name.find(query)
@@ -121,11 +117,9 @@ def getPinList(request):
         pinnedEvents = list(user)[0]['Pinned']
         for i in pinnedEvents:
                 for j in loc:
-        # for k in j['titles']:
                     if i['location'] in j['titles']: 
-                        # print(j['description'])
-                        if {'description':j['description'],'location':j['location']} not in location_pins:
-                            location_pins.append({'description':j['description'],'location':j['location']})
+                        if {'id':i['id'],'description':j['description'],'place':i['location'],'location':j['location'],'title':j['titles'][0]} not in location_pins:
+                            location_pins.append({'id':i['id'],'description':j['description'],'place':i['location'],'location':j['location'],'title':j['titles'][0]})
         print(location_pins)
         return response.Response(location_pins)
     return response.Response("USER NOT FOUND")
@@ -142,10 +136,7 @@ def getSubList(request):
     print("DID NOT FIND USER______________")
     return response.Response("USER NOT FOUND")
 
-@api_view(['GET'])
-def getEvents(request):
-
-    def date(date):
+def date(date):
         final_date = ""
         if(int(date[:2]) >= 13):
             for i in range(13,25):
@@ -156,49 +147,48 @@ def getEvents(request):
         else:
             return  date + " am"
         
-    def month(month):
-        if(month[5:7] == "01"):
-            return f"January {month[8:10]} {month[0:4]}"
-        if(month[5:7] == "02"):
-            return f"February {month[8:10]} {month[0:4]}"
-        if(month[5:7] == "03"):
-            return f"March {month[8:10]} {month[0:4]}"
-        if(month[5:7] == "04"):
-            return f"April {month[8:10]} {month[0:4]}"
-        if(month[5:7] == "05"):
-            return f"May {month[8:10]} {month[0:4]}"
-        if(month[5:7] == "06"):
-            return f"June {month[8:10]} {month[0:4]}"
-        if(month[5:7] == "07"):
-            return f"July {month[8:10]} {month[0:4]}"
-        if(month[5:7] == "08"):
-            return f"August {month[8:10]} {month[0:4]}"
-        if(month[5:7] == "09"):
-            return f"September {month[8:10]} {month[0:4]}"
-        if(month[5:7] == "10"):
-            return f"October {month[8:10]} {month[0:4]}"
-        if(month[5:7] == "11"):
-            return f"November {month[8:10]} {month[0:4]}"
-        if(month[5:7] == "12"):
-            return f"December {month[8:10]} {month[0:4]}"
+def month(month):
+    table = {"01":"January",
+            "02":"February",
+            "03":"March",
+            "04":"April",
+            "05":"May",
+            "06":"June",
+            "07":"July",
+            "08":"August",
+            "09":"September",
+            "10":"October",
+            "11":"November",
+            "12":"December"
+            }
+    if month[5:7] in table:
+        return f"{table[month[5:7]]} {month[8:10]} {month[0:4]}"
+
+
+@api_view(['GET'])
+def getEvents(request):
+    
                         #https://csulb.campuslabs.com/engage/api/discovery/event/search?endsAfter=2023-10-11T17%5E%25%5E3A39%5E%25%5E3A12-07%5E%25%5E3A00&status=Approved&take=15&query=farm
     res = (requests.get(f"https://csulb.campuslabs.com/engage/api/discovery/event/search?endsAfter={processTime()}&status=Approved&take=100000&query={request.GET.get('query')}")).json()['value']
-    for i in res:
-        print(i['location'])
-    val  = [ { 'pinned': False,'name': i['name'], "key" : i['id'], 'description': processingEventData(i['description']) , 'location': i['location'],'start' : f"{date(i['startsOn'][11:16])} on {month(i['startsOn'][:10])}", 'end': f"{date(i['endsOn'][11:16])} on {month(i['endsOn'][:10])}", 'imagePath': f'https://se-images.campuslabs.com/clink/images/{i["imagePath"]}?preset=large-w&quot'} for i in res]
+    val  = [ {"pinned":False,'name': i['name'], "key" : i['id'], 'description': processingEventData(i['description']) , 'location': i['location'],'start' : f"{date(i['startsOn'][11:16])} on {month(i['startsOn'][:10])}", 'end': f"{date(i['endsOn'][11:16])} on {month(i['endsOn'][:10])}", 'imagePath': f'https://se-images.campuslabs.com/clink/images/{i["imagePath"]}?preset=large-w&quot'} for i in res]
+
     return response.Response(val)
 
 # get orgs list by username form front end and for every orgID do getORGcall from the beach sync database
 @api_view(['GET'])
 def getOrgs(request):
-    res = requests.get(f"https://csulb.campuslabs.com/engage/api/discovery/search/organizations?orderBy%5B0%5D=UpperName%20asc&top=10&filter&query={request.GET.get('query')}&skip=0").json()['value']
-    # return response.Response(res.json()['value'])
-    val  = [ {'name': i['Name'], 'Summary': i['Summary'], 'ProfilePicture': f"https://se-images.campuslabs.com/clink/images/{i['ProfilePicture']}?preset=small-sq"} for i in res]
+    res = requests.get(f"https://csulb.campuslabs.com/engage/api/discovery/search/organizations?orderBy%5B0%5D=UpperName%20asc&top=100000&filter&query={request.GET.get('query')}&skip=0").json()['value']
+
+    val  = [ { 'subscribed': False, 'key': i['Id'], 'name': i['Name'], 'Summary': i['Summary'], 'ProfilePicture': f"https://se-images.campuslabs.com/clink/images/{i['ProfilePicture']}?preset=small-sq"} for i in res]
     
     return response.Response(val)
 
 # image query https://se-images.campuslabs.com/clink/images/__profilepicture__?preset=small-sq
 @api_view(['GET'])
-def getOrgEvents(request):
-    pass
-
+def getOrgEvents(request):                                                              
+   # https://csulb.campuslabs.com/engage/api/discovery/event/search?filter=EndsOn%20ge%202023-12-10T03%3A24%3A50-08%3A00&top=4&orderBy%5B0%5D=EndsOn%20asc&endsAfter=2023-12-10T03%3A24%3A49-08%3A00&orderByField=endsOn&orderByDirection=ascending&status=Approved&take=4&organizationIds%5B0%5D=215692&excludeIds%5B0%5D=9653925
+    # https://csulb.campuslabs.com/engage/api/discovery/event/search?filter=EndsOn%20ge%202023-12-10T03%3A24%3A50-08%3A00&top=4&orderBy%5B0%5D=EndsOn%20asc&endsAfter=2023-12-10T03%3A24%3A49-08%3A00&orderByField=endsOn&orderByDirection=ascending&status=Approved&take=4&organizationIds%5B0%5D=215692&excludeIds%5B0%5D=9653925
+    time = processTime()
+    res = requests.get(f"https://csulb.campuslabs.com/engage/api/discovery/event/search?filter=EndsOn%20ge%20{time}&top=4&orderBy%5B0%5D=EndsOn%20asc&endsAfter={time}&orderByField=endsOn&orderByDirection=ascending&status=Approved&take=4&organizationIds%5B0%5D={request.GET.get('query')}&excludeIds%5B0%5D=9653925").json()['value']
+    val  = [ {"pinned":False,'name': i['name'], "key" : i['id'], 'description': processingEventData(i['description']) , 'location': i['location'],'start' : f"{date(i['startsOn'][11:16])} on {month(i['startsOn'][:10])}", 'end': f"{date(i['endsOn'][11:16])} on {month(i['endsOn'][:10])}", 'imagePath': f'https://se-images.campuslabs.com/clink/images/{i["imagePath"]}?preset=large-w&quot'} for i in res]
+    return response.Response(val)

@@ -222,25 +222,32 @@ app.post('/api/subscribe', async (req, res) =>{
   console.log(org)
   try{
     const user = await User.findOne({ 'email': id })
+ 
+    console.log(user)
     if (user){
       console.log("This is an array ", user.Subscribed)
       const arr = user.Subscribed
-      console.log("1: debug")
+
+      const orgString = JSON.stringify(org)
       console.log('MongoDB Arr Before:', user.Subscribed)
       const foundEvent = arr.find((element) => {
-        console.log("ELEMENT: ",element)
-        console.log("event: ", eventString)
-        if(element == org){
+        const a = JSON.stringify(element) 
+        // console.log("ELEMENT: ",element)
+        if(a == orgString){
           console.log("2: debug")
           console.log('MongoDB Arr After:', user.Subscribed)
           return true
         }
       })
+      console.log(foundEvent,"________found Event Value")
       if(foundEvent){
+        console.log("Event already in array")
         return res.status(200).json({ message: 'Already Subscribed' })
       }
       else{
+  
         arr.push(org)
+   
         await User.updateOne({'email': id}, {'Subscribed': arr})
         console.log('MongoDB Arr  After: ', user.Subscribed)
         return res.status(200).json({ message: 'Organization subscribed' }) 
@@ -305,18 +312,18 @@ app.delete('/api/unsubscribe', async (req,res)=>{
     if(user){
       const arr = user.Subscribed
       console.log("before Unpin :", arr)
-      // const eventString = JSON.stringify
+      const orgString = JSON.stringify(org)
       const foundEvent = arr.find((element) => {
-          // const a = JSON.stringify(element) 
+          const a = JSON.stringify(element) 
           // console.log("ELEMENT: ", a)
           // console.log("event: ", eventString)
-          if(element == org){
+          if(a == orgString){
             console.log("Found String")
             return true
           }
       })
       if(foundEvent){
-        const index = arr.findIndex(element => element == org )
+        const index = arr.findIndex(element => element.id == org.id )
         arr.splice(index, 1)
         await User.updateOne({'email': id}, {'Subscribed': arr})
         console.log("After Unpin: ",arr)
@@ -349,11 +356,12 @@ app.delete('/api/unsubscribe', async (req,res)=>{
 // FOR SCHOOL
 
 
-
+// 192.168.254.11 home
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server is running on http://0.0.0.0:${port}`);
 });
+
 
 
 

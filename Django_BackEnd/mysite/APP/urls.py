@@ -24,8 +24,9 @@ urlpatterns = [
     path('events', dataCalls.getEvents, name = "FetchEvents"),
     path('getorgs', dataCalls.getOrgs, name = 'FetchOrgs'),
     path('getevents', dataCalls.getEvents, name = 'searchEvents'),
-    path('getpinlist', dataCalls.getPinList, name = 'pinList'),
-    
+    path('getSubList', dataCalls.getSubList, name = 'SubList' ),
+    path('getOrgEvents', dataCalls.getOrgEvents, name = "OrgEvents"),
+    path('getPinList', dataCalls.getPinList, name = 'PinList'),
     path('login', auth.LoginAuth, name = 'login') # r'searchEvents|searchEvents?query=*'
      
 ]
