@@ -4,6 +4,7 @@ from django.shortcuts import HttpResponse
 from .processing import processTime, processingEventData
 import requests
 import pymongo
+import json
 
 connection_String  = "mongodb+srv://KeshavMehta:ftZbEq1LCpPW4Uy1@cluster0.gq0hrfm.mongodb.net/?retryWrites=true&w=majority"
 my_client = pymongo.MongoClient(connection_String)
@@ -114,15 +115,26 @@ def getPinList(request):
     print(query)
     user = collection_name.find(query)
     if(user):
+        print("FOUND")
         pinnedEvents = list(user)[0]['Pinned']
-        for i in pinnedEvents:
-                for j in loc:
-                    if i['location'] in j['titles']: 
-                        if {'id':i['id'],'description':j['description'],'place':i['location'],'location':j['location'],'title':j['titles'][0]} not in location_pins:
-                            location_pins.append({'id':i['id'],'description':j['description'],'place':i['location'],'location':j['location'],'title':j['titles'][0]})
-        print(location_pins)
+        remainingArr = pinnedEvents
+        for i in loc:
+                eventKeys = []
+                print("ARRAY PINNED EVENTS :", pinnedEvents)
+                for j in range(len(pinnedEvents)):
+                    print(j)
+                    if pinnedEvents[j]['location'] in i['titles']:
+                        eventKeys.append(pinnedEvents[j]['id'])
+                        # del remainingArr[j]
+                pinnedEvents = remainingArr
+
+                if len(eventKeys) != 0:
+                    location_pins.append({'events':eventKeys,'description':i['description'],'location':i['location'],'title':i['titles'][0]})
+
+        print("Data Calls:", location_pins)
         return response.Response(location_pins)
-    return response.Response("USER NOT FOUND")
+    else:
+        print("Not Found")
 
 @api_view(['GET'])
 def getSubList(request):
@@ -167,21 +179,36 @@ def month(month):
 
 @api_view(['GET'])
 def getEvents(request):
-    
-                        #https://csulb.campuslabs.com/engage/api/discovery/event/search?endsAfter=2023-10-11T17%5E%25%5E3A39%5E%25%5E3A12-07%5E%25%5E3A00&status=Approved&take=15&query=farm
-    res = (requests.get(f"https://csulb.campuslabs.com/engage/api/discovery/event/search?endsAfter={processTime()}&status=Approved&take=100000&query={request.GET.get('query')}")).json()['value']
-    val  = [ {"pinned":False,'name': i['name'], "key" : i['id'], 'description': processingEventData(i['description']) , 'location': i['location'],'start' : f"{date(i['startsOn'][11:16])} on {month(i['startsOn'][:10])}", 'end': f"{date(i['endsOn'][11:16])} on {month(i['endsOn'][:10])}", 'imagePath': f'https://se-images.campuslabs.com/clink/images/{i["imagePath"]}?preset=large-w&quot'} for i in res]
-
+    res = (requests.get(f"https://csulb.campuslabs.com/engage/api/discovery/event/search?endsAfter={processTime()}&status=Approved&take=1000&query={request.GET.get('query')}")).json()['value']
+    query = {'email': request.GET.get('id')}
+    print(query)
+    user = collection_name.find(query)
+    if(user):
+        eventIDs = [ i['id'] for i in list(user)[0]['Pinned']] 
+        print(eventIDs)
+        val = []
+        for i in res:
+            val.append({"pinned": i['id'] in eventIDs,'name': i['name'], "key" : i['id'], 'description': processingEventData(i['description']) , 'location': i['location'],'start' : f"{date(i['startsOn'][11:16])} on {month(i['startsOn'][:10])}", 'end': f"{date(i['endsOn'][11:16])} on {month(i['endsOn'][:10])}", 'imagePath': f'https://se-images.campuslabs.com/clink/images/{i["imagePath"]}?preset=large-w&quot'})
     return response.Response(val)
+
 
 # get orgs list by username form front end and for every orgID do getORGcall from the beach sync database
 @api_view(['GET'])
 def getOrgs(request):
-    res = requests.get(f"https://csulb.campuslabs.com/engage/api/discovery/search/organizations?orderBy%5B0%5D=UpperName%20asc&top=100000&filter&query={request.GET.get('query')}&skip=0").json()['value']
-
-    val  = [ { 'subscribed': False, 'key': i['Id'], 'name': i['Name'], 'Summary': i['Summary'], 'ProfilePicture': f"https://se-images.campuslabs.com/clink/images/{i['ProfilePicture']}?preset=small-sq"} for i in res]
+    if(request.GET.get('query')):
+        res = requests.get(f"https://csulb.campuslabs.com/engage/api/discovery/search/organizations?top=10000&filter&query={request.GET.get('query')}&skip=0").json()['value']
+    else:
+        res = requests.get(f"https://csulb.campuslabs.com/engage/api/discovery/search/organizations?orderBy%5B0%5D=UpperName%20asc&top=10000&filter&query={request.GET.get('query')}&skip=0").json()['value']
     
-    return response.Response(val)
+    userQuery = {'email': request.GET.get('id')}
+    user = collection_name.find(userQuery)
+    if(user):
+        orgIDs = [ i['id'] for i in list(user)[0]['Subscribed']]
+        data = []
+        for i in res:
+            data.append({ 'subscribed': i['Id'] in orgIDs, 'key': i['Id'], 'name': i['Name'], 'Summary': i['Summary'], 'ProfilePicture': f"https://se-images.campuslabs.com/clink/images/{i['ProfilePicture']}?preset=small-sq"})
+    
+    return response.Response(data)
 
 # image query https://se-images.campuslabs.com/clink/images/__profilepicture__?preset=small-sq
 @api_view(['GET'])
@@ -192,3 +219,15 @@ def getOrgEvents(request):
     res = requests.get(f"https://csulb.campuslabs.com/engage/api/discovery/event/search?filter=EndsOn%20ge%20{time}&top=4&orderBy%5B0%5D=EndsOn%20asc&endsAfter={time}&orderByField=endsOn&orderByDirection=ascending&status=Approved&take=4&organizationIds%5B0%5D={request.GET.get('query')}&excludeIds%5B0%5D=9653925").json()['value']
     val  = [ {"pinned":False,'name': i['name'], "key" : i['id'], 'description': processingEventData(i['description']) , 'location': i['location'],'start' : f"{date(i['startsOn'][11:16])} on {month(i['startsOn'][:10])}", 'end': f"{date(i['endsOn'][11:16])} on {month(i['endsOn'][:10])}", 'imagePath': f'https://se-images.campuslabs.com/clink/images/{i["imagePath"]}?preset=large-w&quot'} for i in res]
     return response.Response(val)
+
+
+@api_view(['POST'])
+def getEventById(request):
+    body_unicode = request.body.decode('utf-8')
+    body = json.loads(body_unicode)
+    eventList = body['arr']
+    data = []
+    for i in eventList:
+        res = requests.get(f"https://csulb.campuslabs.com/engage/api/discovery/event/{i}").json()
+        data.append({"pinned":True,'name': res['name'], "key" : res['id'], 'description': processingEventData(res['description']) , 'location': res['address']['name'],'start' : f"{date(res['startsOn'][11:16])} on {month(res['startsOn'][:10])}", 'end': f"{date(res['endsOn'][11:16])} on {month(res['endsOn'][:10])}", 'imagePath': res["imageUrl"]})
+    return response.Response(data)
